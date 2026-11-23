@@ -6,4 +6,4 @@
 #include "runner.h"
 #include "stats.h"
 
-void render_report(const Config& cfg, const std:: vector<RunResult>& results, const BenchmarkSummary& summary);
+void print_report(const Config& cfg, const BenchmarkSummary& summary);

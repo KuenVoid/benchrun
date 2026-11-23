@@ -1,2 +1,45 @@
+# Build directories and generated CMake files
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
 Makefile
-TODO.md
+install_manifest.txt
+compile_commands.json
+
+# Compiled objects and binaries
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+/benchrun
+
+# Test and coverage output
+Testing/
+*.gcda
+*.gcno
+*.gcov
+coverage/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Operating-system metadata
+.DS_Store
+._*
+Thumbs.db
+
+# Local environment and temporary files
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+tmp/
+temp/
