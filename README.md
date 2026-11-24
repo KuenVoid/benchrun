@@ -105,7 +105,7 @@ Requires a C++20 compiler on Linux or macOS.
 cmake -S . -B build
 cmake --build build --parallel
 
-# Run the end-to-end smoke suite
+# Run focused unit tests and the end-to-end smoke suite
 ctest --test-dir build --output-on-failure
 ```
 

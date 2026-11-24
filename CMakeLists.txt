@@ -19,5 +19,14 @@ if(BENCHRUN_ENABLE_SANITIZERS)
 endif()
 
 enable_testing()
+add_executable(benchrun_unit_tests
+    tests/unit_tests.cpp
+    cli.cpp
+    stats.cpp
+)
+target_compile_features(benchrun_unit_tests PRIVATE cxx_std_20)
+target_compile_options(benchrun_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+target_include_directories(benchrun_unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME benchrun_unit COMMAND benchrun_unit_tests)
 add_test(NAME benchrun_smoke COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke.sh
          ${CMAKE_CURRENT_BINARY_DIR}/benchrun)

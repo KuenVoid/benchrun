@@ -2,6 +2,9 @@
 set -eu
 
 benchrun=${1:?usage: smoke.sh BENCHRUN}
+# Resolve the executable before any test changes directory.
+benchrun_dir=$(CDPATH= cd -- "$(dirname "$benchrun")" && pwd)
+benchrun="$benchrun_dir/$(basename "$benchrun")"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/benchrun-smoke.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT
 
