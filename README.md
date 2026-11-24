@@ -1,5 +1,6 @@
 # benchrun
-$\color{grey}\text{Code Assisted By AI}$
+$\color{grey}\text{Code Assisted By AI and Repo Owner is still learning.}$
+$\color{green}\text{For students / enthusiasts that would like to learn by project, feel free to pull and contribute. I pushed TODO.md that I have no time to do :)}$
 
 A lightweight, zero-dependency C++20 CLI tool for multi-run execution timing, peak RSS tracking, and resource-capped benchmarking on Linux and macOS.
 
