@@ -23,6 +23,9 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    if (cfg.json_output || cfg.runs_json || cfg.csv_output)
+        cfg.quiet = true;
+
     const auto execution = run_benchmark(cfg);
     if (execution.error) {
         std::cerr << "benchrun: " << execution.error->operation << " failed";
@@ -33,6 +36,6 @@ int main(int argc, char* argv[]) {
     }
 
     const BenchmarkSummary summary = compute_stats(execution.results.measured);
-    print_report(cfg, summary);
+    print_report(cfg, summary, execution.results.warmups, execution.results.measured);
     return (summary.failed_runs > 0 || summary.timed_out_runs > 0) ? 1 : 0;
 }

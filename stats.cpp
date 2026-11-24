@@ -14,6 +14,8 @@ MetricStats summarize_metric(std::vector<double>& values) {
     std::sort(values.begin(), values.end());
     MetricStats result;
     size_t n = values.size();
+    result.min = values.front();
+    result.max = values.back();
     result.median = (n % 2 == 0) ? (values[n / 2] + values[n / 2 - 1]) / 2 : values[n / 2];
     result.mean = std::accumulate(values.begin(), values.end(), 0.0) / static_cast<double>(n);
     if (n < 2) {

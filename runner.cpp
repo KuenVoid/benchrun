@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <fcntl.h>
 #include <limits>
 #include <string>
@@ -16,8 +17,9 @@
 #include <unistd.h>
 #include <vector>
 
-namespace {
+extern char** environ;
 
+namespace {
 struct PreparedCommand {
     std::string shell_cmd;
     std::vector<char*> argv;
@@ -67,6 +69,53 @@ std::uint64_t normalize_max_rss_byte(long ru_maxrss) {
 }
 
 void setup_child_process(const Config& cfg) {
+    if (!cfg.cwd.empty() && chdir(cfg.cwd.c_str()) != 0) {
+        perror("chdir");
+        _exit(126);
+    }
+
+    if (cfg.clear_env) {
+        std::vector<std::string> names;
+        for (char** entry = environ; entry && *entry; ++entry) {
+            const char* equal = std::strchr(*entry, '=');
+            names.emplace_back(*entry, equal ? static_cast<std::size_t>(equal - *entry)
+                                             : std::strlen(*entry));
+        }
+        for (const std::string& name : names) {
+            if (unsetenv(name.c_str()) != 0) {
+                perror("unsetenv");
+                _exit(126);
+            }
+        }
+    }
+
+    for (const std::string& assignment : cfg.env) {
+        const std::size_t equal = assignment.find('=');
+        if (equal == std::string::npos)
+            _exit(126);
+        const std::string name = assignment.substr(0, equal);
+        const std::string value = assignment.substr(equal + 1);
+        if (setenv(name.c_str(), value.c_str(), 1) != 0) {
+            perror("setenv");
+            _exit(126);
+        }
+    }
+
+    if (cfg.null_stdin || !cfg.stdin_file.empty()) {
+        const char* path = cfg.null_stdin ? "/dev/null" : cfg.stdin_file.c_str();
+        const int fd = open(path, O_RDONLY);
+        if (fd < 0) {
+            perror("open");
+            _exit(126);
+        }
+        if (dup2(fd, STDIN_FILENO) < 0) {
+            perror("dup2");
+            _exit(126);
+        }
+        if (fd > STDERR_FILENO)
+            close(fd);
+    }
+
     if (cfg.max_mem_mb > 0) {
         constexpr std::uint64_t kBytesPerMb = 1024ULL * 1024ULL;
         if (cfg.max_mem_mb > std::numeric_limits<rlim_t>::max() / kBytesPerMb) {
@@ -195,6 +244,10 @@ RunExecution run_once(const Config& cfg, const PreparedCommand& cmd, std::size_t
     RunResult result;
     result.run_index = run_index;
     result.warmup = warmup;
+    result.start_time_ns = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(t0.time_since_epoch()).count());
+    result.end_time_ns = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(t1.time_since_epoch()).count());
     result.wall_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     result.user_ms = static_cast<double>(waitres.usage.ru_utime.tv_sec) * 1000.0 +
                      static_cast<double>(waitres.usage.ru_utime.tv_usec) / 1000.0;

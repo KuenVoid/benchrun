@@ -11,8 +11,10 @@ Built to fill the gap between `/usr/bin/time` (single-run, inconsistent OS flags
 
 * **Cross-Platform POSIX Metrics:** Consistent flags and normalized output across Linux and macOS (handles `ru_maxrss` KB vs. bytes differences automatically).
 * **Multi-Run Statistics:** Supports warmup runs (`-w`) and measured iterations (`-n`), reporting min, max, mean, and median for successful runs.
-* **Resource Guardrails:** Enforce hard execution timeouts (`-t`) and virtual address-space limits (`-m` via `setrlimit`).
+* **Resource Guardrails:** Enforce hard execution timeouts (`-t`) and virtual address-space limits (`-m` via `setrlimit(RLIMIT_AS)`).
 * **Clean Reporting:** Human-readable terminal summary by default, plus `--json` for scripting and logging.
+* **Machine-Readable Runs:** JSON and CSV exporters expose per-run timing, exit status, signal, timeout, and peak RSS.
+* **Execution Controls:** Working directory, environment overrides, environment clearing, and stdin file or `/dev/null`.
 
 ---
 
@@ -25,7 +27,7 @@ benchrun ./my_program arg1 arg2
 # 10 measured runs with 2 warmups, muting program stdout/stderr
 benchrun -n 10 -w 2 -q ./my_sort 100000
 
-# Enforce a 2-second timeout and 256 MB RAM cap
+# Enforce a 2-second timeout and a 256 MB virtual-address-space limit
 benchrun -t 2000 -m 256 ./my_program
 
 # Run raw shell syntax (arguments are joined and passed to /bin/sh -c)
@@ -33,19 +35,35 @@ benchrun --shell -- printf 'hello\n' '|' wc -c
 
 # Use explicit '--' when the target program has colliding flags
 benchrun -n 5 -- ./my_app -n 100 -q
+
+# Machine-readable output
+benchrun --json -n 5 -- ./my_app
+benchrun --runs-json -- ./my_app
+benchrun --csv -n 5 -- ./my_app
+
+# Execution environment
+benchrun --cwd /tmp --env MODE=test --clear-env --null-stdin -- ./my_app
 ```
 
 ### CLI Options
 
 | Flag | Default | Description |
 |---|---|---|
-| `-n, --runs <int>` | `1` | Number of measured executions |
+| `-n, -r, --runs <int>` | `1` | Number of measured executions |
 | `-w, --warmup <int>` | `0` | Unmeasured warmup runs before timing |
 | `-q, --quiet` | `false` | Redirect child `stdout`/`stderr` to `/dev/null` |
 | `-s, --shell` | `false` | Execute command via `/bin/sh -c` (supports pipes/redirects) |
 | `-t, --timeout <ms>` | `0` (off) | Kill child with `SIGKILL` if execution exceeds limit |
 | `-m, --max-mem <MB>` | `0` (off) | Cap child virtual address space via `setrlimit(RLIMIT_AS)` |
 | `--json` | `false` | Output benchmark results in JSON format |
+| `--verbose` | `false` | Print individual warmup and measured run results |
+| `--runs-json` | `false` | Output only a schema-versioned per-run JSON array |
+| `--csv` | `false` | Output measured per-run records as CSV |
+| `--cwd <path>` | inherited | Set the child working directory |
+| `--env <KEY=VALUE>` | inherited | Set an environment variable (repeatable) |
+| `--clear-env` | `false` | Clear the inherited environment before applying `--env` |
+| `--stdin-file <path>` | inherited | Read child stdin from a file |
+| `--null-stdin` | `false` | Connect child stdin to `/dev/null` |
 | `-h, --help` | -- | Display usage information |
 
 Shell mode treats the command arguments as raw `/bin/sh` syntax; it does not
@@ -64,21 +82,79 @@ descendants.
 
 ## Build & Install
 
-Requires a C++20 compiler (`g++` or `clang++`) on Linux or macOS.
+Requires a C++20 compiler on Linux or macOS.
+
+### Method 1: CMake
 
 ```bash
-# Configure and build
 cmake -S . -B build
-cmake --build build
+cmake --build build --parallel
 
-# Install globally for your user (no sudo required)
+# Run the end-to-end smoke suite
+ctest --test-dir build --output-on-failure
+```
+
+With sanitizers enabled:
+
+```bash
+cmake -S . -B build-sanitize -DBENCHRUN_ENABLE_SANITIZERS=ON
+cmake --build build-sanitize --parallel
+ctest --test-dir build-sanitize --output-on-failure
+```
+
+Install globally from the CMake build (no sudo required):
+
+```bash
 mkdir -p ~/.local/bin
 cp build/benchrun ~/.local/bin/benchrun
 ```
 
-Ensure `export PATH="$HOME/.local/bin:$PATH"` is in your `.bashrc` or `.zshrc`.
+### Method 2: Manual compiler command
 
-Run the smoke tests with `ctest --test-dir build --output-on-failure`.
+Use `g++`:
+
+```bash
+g++ -std=c++20 -Wall -Wextra -Wpedantic \
+  main.cpp cli.cpp runner.cpp stats.cpp reporter.cpp \
+  -o benchrun
+./benchrun --help
+tests/smoke.sh ./benchrun
+```
+
+Or use `clang++`:
+
+```bash
+clang++ -std=c++20 -Wall -Wextra -Wpedantic \
+  main.cpp cli.cpp runner.cpp stats.cpp reporter.cpp \
+  -o benchrun
+```
+
+Ensure `export PATH="$HOME/.local/bin:$PATH"` is in your `.bashrc` or `.zshrc`
+after a CMake installation.
+
+### Smoke tests and custom programs
+
+The default smoke suite is dependency-light and uses only the system shell,
+standard POSIX utilities, and the compiled `benchrun` executable. It exercises
+the CLI flags, output formats, execution controls, failure outcomes, timeout
+cleanup, and JSON/CSV field structure:
+
+```bash
+# Direct compiler build
+g++ -std=c++20 -Wall -Wextra -Wpedantic \
+  main.cpp cli.cpp runner.cpp stats.cpp reporter.cpp \
+  -o benchrun
+tests/smoke.sh ./benchrun
+
+# CMake build
+ctest --test-dir build --output-on-failure
+```
+
+The final section of `tests/smoke.sh` contains an optional, commented
+custom-program template. Set `custom_program` to your executable and
+`custom_args` to its arguments, then uncomment the checks you need. It is
+commented by default so contributors can run the generic suite without
+depending on a repository-specific test program.
 
 See [TODO.md](TODO.md) for the development roadmap and [Report.md](Report.md)
 for the implementation summary and remaining error-handling concerns.
@@ -87,10 +163,41 @@ for the implementation summary and remaining error-handling concerns.
 
 ## Architecture
 
-```text
+```
 ├── cli.h / cli.cpp            # Declarative flag parser & help generator
 ├── runner.h / runner.cpp      # POSIX fork/execvp/wait4, rusage, timeout & setrlimit
 ├── stats.h / stats.cpp        # Min, max, mean, median & failure aggregation
 ├── reporter.h / reporter.cpp  # Terminal table & JSON renderer
 └── main.cpp                   # Top-level orchestration pipeline
 ```
+
+---
+
+## Explanation of Statistics
+
+benchrun reports each timing metric from the successful measured runs. Warmup
+runs and failed, signaled, or timed-out executions are excluded from timing
+statistics.
+
+| Metric | Meaning | How it is measured |
+|---|---|---|
+| `Wall` | Real elapsed time, including process startup and waiting for the command to finish | Measured with `std::chrono::steady_clock` before waiting for the child and after `wait4` reaps it |
+| `User` | CPU time spent by the child process in user mode | Read from `ru_utime` returned by POSIX `wait4` and converted to milliseconds |
+| `Sys` | CPU time spent by the child process in kernel mode | Read from `ru_stime` returned by POSIX `wait4` and converted to milliseconds |
+| `Peak RSS` | Maximum resident memory used by the child process | Read from `ru_maxrss` returned by POSIX `wait4`, then normalized to bytes |
+
+Wall time and CPU time measure different kinds of time. `Wall` includes time
+spent waiting for the scheduler, I/O, locks, or other system activity. `User`
+and `Sys` count CPU execution time in user mode and kernel mode respectively.
+Consequently, wall time is not required to equal `User + Sys`.
+
+For every metric, the table reports:
+
+* **Mean**: the arithmetic average across successful runs.
+* **Stddev**: the sample standard deviation across successful runs.
+* **Median**: the middle value when the run values are sorted.
+* **Min**: the smallest value across successful runs.
+* **Max**: the largest value across successful runs.
+
+The report uses median for even-sized samples as the average of the two middle
+values. One successful run has a standard deviation of `0`.

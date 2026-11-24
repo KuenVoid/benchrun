@@ -40,6 +40,16 @@ template <bool Config::* Field> void set_flag(Config& cfg, std::string_view, std
     cfg.*Field = true;
 }
 
+template <std::string Config::* Field> void set_string(Config& cfg, std::string_view val, std::string_view) {
+    cfg.*Field = std::string(val);
+}
+
+void set_env(Config& cfg, std::string_view val, std::string_view flag_name) {
+    if (val.find('=') == std::string_view::npos)
+        throw std::invalid_argument(std::string(flag_name) + " requires KEY=VALUE");
+    cfg.env.emplace_back(val);
+}
+
 template <auto Config::* Field, std::uint64_t Min = 0> void set_u64(Config& cfg, std::string_view val, std::string_view flag_name) {
     auto parsed = parse_u64(val, flag_name);
     if (parsed < Min)
@@ -50,14 +60,23 @@ template <auto Config::* Field, std::uint64_t Min = 0> void set_u64(Config& cfg,
     cfg.*Field = static_cast<MemberT>(parsed);
 }
 
-constexpr std::array<FlagSpec, 8> kFlags = {{
+constexpr std::array<FlagSpec, 17> kFlags = {{
     {"-r", "--runs", "<int>", "Number of benchmark runs (default: 1)", true, &set_u64<&Config::runs, 1>},
+    {"-n", "--runs", "<int>", "Alias for -r/--runs", true, &set_u64<&Config::runs, 1>},
     {"-w", "--warmup", "<int>", "Number of warmup runs (default: 0)", true, &set_u64<&Config::warmup>},
     {"-q", "--quiet", "", "Suppress child stdout and stderr", false, &set_flag<&Config::quiet>},
     {"-s", "--shell", "", "Run command via /bin/sh -c", false, &set_flag<&Config::use_shell>},
     {"-t", "--timeout", "<ms>", "Kill child after timeout in ms (0 = off)", true, &set_u64<&Config::timeout_ms>},
     {"-m", "--max-mem", "<MB>", "Memory limit in MB via RLIMIT_AS (0 = off)", true, &set_u64<&Config::max_mem_mb>},
     {"", "--json", "", "Output results as JSON", false, &set_flag<&Config::json_output>},
+    {"", "--verbose", "", "Print individual warmup and measured runs", false, &set_flag<&Config::verbose>},
+    {"", "--runs-json", "", "Output only per-run JSON records", false, &set_flag<&Config::runs_json>},
+    {"", "--csv", "", "Output measured per-run records as CSV", false, &set_flag<&Config::csv_output>},
+    {"", "--cwd", "<path>", "Set the child working directory", true, &set_string<&Config::cwd>},
+    {"", "--env", "<KEY=VALUE>", "Set a child environment variable (repeatable)", true, &set_env},
+    {"", "--clear-env", "", "Clear the inherited environment", false, &set_flag<&Config::clear_env>},
+    {"", "--stdin-file", "<path>", "Read child stdin from a file", true, &set_string<&Config::stdin_file>},
+    {"", "--null-stdin", "", "Connect child stdin to /dev/null", false, &set_flag<&Config::null_stdin>},
     {"-h", "--help", "", "Show this help message", false, &set_flag<&Config::show_help>},
 }};
 
@@ -115,6 +134,8 @@ void validate_config(const Config& cfg) {
         throw std::invalid_argument("missing command");
     if (cfg.runs == 0)
         throw std::invalid_argument("--runs must be >= 1");
+    if (!cfg.stdin_file.empty() && cfg.null_stdin)
+        throw std::invalid_argument("--stdin-file and --null-stdin cannot be used together");
 }
 
 void print_help(const char* prog_name) {
