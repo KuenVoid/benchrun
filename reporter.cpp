@@ -1,6 +1,7 @@
 #include "reporter.h"
 
 #include <array>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -135,15 +136,16 @@ void print_runs_json(std::ostream& out, std::span<const RunResult> warmups,
 
 void print_json(const Config& cfg, const BenchmarkSummary& summary,
                 std::span<const RunResult> warmups,
-                std::span<const RunResult> measured) {
-    std::cout << "{"
+                std::span<const RunResult> measured,
+                std::ostream& out) {
+    out << "{"
               << "\"schema_version\":1,"
               << "\"command\":[";
     for (std::size_t i = 0; i < cfg.command.size(); ++i) {
-        if (i > 0) std::cout << ",";
-        std::cout << "\"" << json_escape(cfg.command[i]) << "\"";
+        if (i > 0) out << ",";
+        out << "\"" << json_escape(cfg.command[i]) << "\"";
     }
-    std::cout << "],"
+    out << "],"
               << "\"configuration\":{\"runs\":" << cfg.runs
               << ",\"warmup\":" << cfg.warmup
               << ",\"quiet\":" << (cfg.quiet ? "true" : "false")
@@ -159,30 +161,31 @@ void print_json(const Config& cfg, const BenchmarkSummary& summary,
               << ",\"failed\":" << summary.failed_runs
               << ",\"timed_out\":" << summary.timed_out_runs << "},"
               << "\"metrics\":{\"aggregation\":\"successful_runs\",";
-    print_metric_json(std::cout, "wall_ms", summary.wall_ms);
-    std::cout << ",";
-    print_metric_json(std::cout, "user_ms", summary.user_ms);
-    std::cout << ",";
-    print_metric_json(std::cout, "sys_ms", summary.sys_ms);
-    std::cout << ",";
-    print_metric_json(std::cout, "peak_rss_bytes", summary.peak_rss_bytes);
-    std::cout << "},"
+    print_metric_json(out, "wall_ms", summary.wall_ms);
+    out << ",";
+    print_metric_json(out, "user_ms", summary.user_ms);
+    out << ",";
+    print_metric_json(out, "sys_ms", summary.sys_ms);
+    out << ",";
+    print_metric_json(out, "peak_rss_bytes", summary.peak_rss_bytes);
+    out << "},"
               << "\"runs\":";
-    print_runs_json(std::cout, warmups, measured);
-    std::cout << "}\n";
+    print_runs_json(out, warmups, measured);
+    out << "}\n";
 }
 
 void print_runs_json_only(std::span<const RunResult> warmups,
-                          std::span<const RunResult> measured) {
-    std::cout << "{\"schema_version\":1,\"runs\":";
-    print_runs_json(std::cout, warmups, measured);
-    std::cout << "}\n";
+                          std::span<const RunResult> measured,
+                          std::ostream& out) {
+    out << "{\"schema_version\":1,\"runs\":";
+    print_runs_json(out, warmups, measured);
+    out << "}\n";
 }
 
-void print_csv(std::span<const RunResult> measured) {
-    std::cout << "run_index,phase,outcome,exit_code,term_signal,wall_ms,user_ms,sys_ms,peak_rss_bytes,start_time_ns,end_time_ns\n";
+void print_csv(std::span<const RunResult> measured, std::ostream& out) {
+    out << "run_index,phase,outcome,exit_code,term_signal,wall_ms,user_ms,sys_ms,peak_rss_bytes,start_time_ns,end_time_ns\n";
     for (const RunResult& run : measured) {
-        std::cout << run.run_index << ",measured,"
+        out << run.run_index << ",measured,"
                   << outcome_name(run.outcome) << ","
                   << run.exit_code << "," << run.term_signal << ","
                   << run.wall_ms << "," << run.user_ms << "," << run.sys_ms << ","
@@ -212,7 +215,7 @@ void print_verbose(std::span<const RunResult> warmups,
 
 } // namespace
 
-void print_report(const Config& cfg, const BenchmarkSummary& summary) {
+bool print_report(const Config& cfg, const BenchmarkSummary& summary) {
     std::cout << "Benchmark: ";
     for (std::size_t i = 0; i < cfg.command.size(); ++i) {
         if (i > 0)
@@ -235,20 +238,56 @@ void print_report(const Config& cfg, const BenchmarkSummary& summary) {
     print_metric_row("User", summary.user_ms, false);
     print_metric_row("Sys", summary.sys_ms, false);
     print_metric_row("Peak RSS", summary.peak_rss_bytes, true);
+    return true;
 }
 
-void print_report(const Config& cfg, const BenchmarkSummary& summary,
+bool print_report(const Config& cfg, const BenchmarkSummary& summary,
                   std::span<const RunResult> warmups,
                   std::span<const RunResult> measured) {
     if (cfg.runs_json) {
-        print_runs_json_only(warmups, measured);
+        std::ofstream out("report.json");
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.json\n";
+            return false;
+        }
+        print_runs_json_only(warmups, measured, out);
+        out.close();
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.json\n";
+            return false;
+        }
+        std::cout << "Report written to report.json\n";
     } else if (cfg.json_output) {
-        print_json(cfg, summary, warmups, measured);
+        std::ofstream out("report.json");
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.json\n";
+            return false;
+        }
+        print_json(cfg, summary, warmups, measured, out);
+        out.close();
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.json\n";
+            return false;
+        }
+        std::cout << "Report written to report.json\n";
     } else if (cfg.csv_output) {
-        print_csv(measured);
+        std::ofstream out("report.csv");
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.csv\n";
+            return false;
+        }
+        print_csv(measured, out);
+        out.close();
+        if (!out) {
+            std::cerr << "benchrun: failed to write report.csv\n";
+            return false;
+        }
+        std::cout << "Report written to report.csv\n";
     } else {
-        print_report(cfg, summary);
+        if (!print_report(cfg, summary))
+            return false;
         if (cfg.verbose)
             print_verbose(warmups, measured);
     }
+    return true;
 }

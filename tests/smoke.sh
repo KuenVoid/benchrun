@@ -51,19 +51,22 @@ grep -q "1/1 succeeded" "$tmp_dir/warmup"
 grep -q "Per-run results:" "$tmp_dir/verbose"
 grep -q "run 1: succeeded" "$tmp_dir/verbose"
 
-"$benchrun" --json -- /bin/sh -c 'exit 0' >"$tmp_dir/json"
-grep -q '"schema_version":1' "$tmp_dir/json"
-grep -q '"outcome":"succeeded"' "$tmp_dir/json"
-grep -Eq '"wall_ms":\{"min":[1-9][0-9]*([.][0-9]+)?' "$tmp_dir/json"
-grep -Eq '"wall_ms":.*"max":[1-9][0-9]*([.][0-9]+)?' "$tmp_dir/json"
+(cd "$tmp_dir" && "$benchrun" --json -- /bin/sh -c 'exit 0') >"$tmp_dir/json-terminal"
+grep -q "Report written to report.json" "$tmp_dir/json-terminal"
+grep -q '"schema_version":1' "$tmp_dir/report.json"
+grep -q '"outcome":"succeeded"' "$tmp_dir/report.json"
+grep -Eq '"wall_ms":\{"min":[1-9][0-9]*([.][0-9]+)?' "$tmp_dir/report.json"
+grep -Eq '"wall_ms":.*"max":[1-9][0-9]*([.][0-9]+)?' "$tmp_dir/report.json"
 
-"$benchrun" --runs-json -- /bin/sh -c 'exit 0' >"$tmp_dir/runs-json"
-grep -q '"schema_version":1' "$tmp_dir/runs-json"
-grep -q '"runs":' "$tmp_dir/runs-json"
+(cd "$tmp_dir" && "$benchrun" --runs-json -- /bin/sh -c 'exit 0') >"$tmp_dir/runs-json-terminal"
+grep -q "Report written to report.json" "$tmp_dir/runs-json-terminal"
+grep -q '"schema_version":1' "$tmp_dir/report.json"
+grep -q '"runs":' "$tmp_dir/report.json"
 
-"$benchrun" --csv -- /bin/sh -c 'exit 0' >"$tmp_dir/csv"
-grep -q 'run_index,phase,outcome' "$tmp_dir/csv"
-grep -q 'measured,succeeded' "$tmp_dir/csv"
+(cd "$tmp_dir" && "$benchrun" --csv -- /bin/sh -c 'exit 0') >"$tmp_dir/csv-terminal"
+grep -q "Report written to report.csv" "$tmp_dir/csv-terminal"
+grep -q 'run_index,phase,outcome' "$tmp_dir/report.csv"
+grep -q 'measured,succeeded' "$tmp_dir/report.csv"
 
 "$benchrun" --cwd "$tmp_dir" --env BENCHRUN_SMOKE=ok --clear-env --null-stdin -- \
     /bin/sh -c 'test "$BENCHRUN_SMOKE" = ok && test -d . && test ! -t 0' \

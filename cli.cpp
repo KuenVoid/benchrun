@@ -68,10 +68,10 @@ constexpr std::array<FlagSpec, 17> kFlags = {{
     {"-s", "--shell", "", "Run command via /bin/sh -c", false, &set_flag<&Config::use_shell>},
     {"-t", "--timeout", "<ms>", "Kill child after timeout in ms (0 = off)", true, &set_u64<&Config::timeout_ms>},
     {"-m", "--max-mem", "<MB>", "Memory limit in MB via RLIMIT_AS (0 = off)", true, &set_u64<&Config::max_mem_mb>},
-    {"", "--json", "", "Output results as JSON", false, &set_flag<&Config::json_output>},
+    {"", "--json", "", "Write benchmark results to report.json", false, &set_flag<&Config::json_output>},
     {"", "--verbose", "", "Print individual warmup and measured runs", false, &set_flag<&Config::verbose>},
-    {"", "--runs-json", "", "Output only per-run JSON records", false, &set_flag<&Config::runs_json>},
-    {"", "--csv", "", "Output measured per-run records as CSV", false, &set_flag<&Config::csv_output>},
+    {"", "--runs-json", "", "Write per-run JSON records to report.json", false, &set_flag<&Config::runs_json>},
+    {"", "--csv", "", "Write measured per-run records to report.csv", false, &set_flag<&Config::csv_output>},
     {"", "--cwd", "<path>", "Set the child working directory", true, &set_string<&Config::cwd>},
     {"", "--env", "<KEY=VALUE>", "Set a child environment variable (repeatable)", true, &set_env},
     {"", "--clear-env", "", "Clear the inherited environment", false, &set_flag<&Config::clear_env>},
@@ -143,7 +143,7 @@ void print_help(const char* prog_name) {
     std::cout << "Usage: " << name << "[OPTIONS] [--] <command> [args]\n\n" << "Options:\n";
     constexpr int kFlagColWidth = 24;
     for (const auto& spec : kFlags) {
-        std::string left = spec.short_name.empty() ? "     " + std::string(spec.long_name)
+        std::string left = spec.short_name.empty() ? "    " + std::string(spec.long_name)
                                                    : std::string(spec.short_name) + ", " + std::string(spec.long_name);
         if (!spec.value_hint.empty()) {
             left += ' ';

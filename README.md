@@ -1,6 +1,7 @@
 # benchrun
 $\color{grey}\text{Code Assisted By AI and Repo Owner is still learning.}$
-$\color{green}\text{For students / enthusiasts that would like to learn by project, feel free to pull and contribute. I pushed TODO.md that I have no time to do :)}$
+$\color{green}\text{For students / enthusiasts that would like to learn by project, feel free to pull and contribute.}$
+$\color{green}\text{I pushed TODO.md that I have no time to do :)}$
 
 A lightweight, zero-dependency C++20 CLI tool for multi-run execution timing, peak RSS tracking, and resource-capped benchmarking on Linux and macOS.
 
@@ -13,8 +14,8 @@ Built to fill the gap between `/usr/bin/time` (single-run, inconsistent OS flags
 * **Cross-Platform POSIX Metrics:** Consistent flags and normalized output across Linux and macOS (handles `ru_maxrss` KB vs. bytes differences automatically).
 * **Multi-Run Statistics:** Supports warmup runs (`-w`) and measured iterations (`-n`), reporting min, max, mean, and median for successful runs.
 * **Resource Guardrails:** Enforce hard execution timeouts (`-t`) and virtual address-space limits (`-m` via `setrlimit(RLIMIT_AS)`).
-* **Clean Reporting:** Human-readable terminal summary by default, plus `--json` for scripting and logging.
-* **Machine-Readable Runs:** JSON and CSV exporters expose per-run timing, exit status, signal, timeout, and peak RSS.
+* **Clean Reporting:** Human-readable terminal summary by default, plus fixed machine-readable report files.
+* **Machine-Readable Runs:** `--json` and `--runs-json` write `report.json`; `--csv` writes `report.csv`.
 * **Execution Controls:** Working directory, environment overrides, environment clearing, and stdin file or `/dev/null`.
 
 ---
@@ -41,8 +42,21 @@ benchrun -n 5 -- ./my_app -n 100 -q
 benchrun --json -n 5 -- ./my_app
 benchrun --runs-json -- ./my_app
 benchrun --csv -n 5 -- ./my_app
+```
+
+Machine-readable modes write files in the directory where `benchrun` is
+invoked:
+
+- `--json` writes the aggregate report and per-run records to `report.json`.
+- `--runs-json` writes only the per-run JSON records to `report.json`.
+- `--csv` writes the measured-run records to `report.csv`.
+
+Running `--json` or `--runs-json` replaces an existing `report.json`. Running
+`--csv` replaces an existing `report.csv`. These modes print a file-written
+confirmation rather than the machine-readable report itself.
 
 # Execution environment
+```bash
 benchrun --cwd /tmp --env MODE=test --clear-env --null-stdin -- ./my_app
 ```
 
@@ -56,10 +70,10 @@ benchrun --cwd /tmp --env MODE=test --clear-env --null-stdin -- ./my_app
 | `-s, --shell` | `false` | Execute command via `/bin/sh -c` (supports pipes/redirects) |
 | `-t, --timeout <ms>` | `0` (off) | Kill child with `SIGKILL` if execution exceeds limit |
 | `-m, --max-mem <MB>` | `0` (off) | Cap child virtual address space via `setrlimit(RLIMIT_AS)` |
-| `--json` | `false` | Output benchmark results in JSON format |
+| `--json` | `false` | Write benchmark results to `report.json` |
 | `--verbose` | `false` | Print individual warmup and measured run results |
-| `--runs-json` | `false` | Output only a schema-versioned per-run JSON array |
-| `--csv` | `false` | Output measured per-run records as CSV |
+| `--runs-json` | `false` | Write only schema-versioned per-run JSON records to `report.json` |
+| `--csv` | `false` | Write measured per-run records to `report.csv` |
 | `--cwd <path>` | inherited | Set the child working directory |
 | `--env <KEY=VALUE>` | inherited | Set an environment variable (repeatable) |
 | `--clear-env` | `false` | Clear the inherited environment before applying `--env` |
@@ -131,7 +145,17 @@ clang++ -std=c++20 -Wall -Wextra -Wpedantic \
 ```
 
 Ensure `export PATH="$HOME/.local/bin:$PATH"` is in your `.bashrc` or `.zshrc`
+
+```
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+```
+
 after a CMake installation.
+To check whether it is installed globally, please run:
+```
+which benchrun # should show a directory where you placed it at
+```
 
 ### Smoke tests and custom programs
 
@@ -157,8 +181,7 @@ custom-program template. Set `custom_program` to your executable and
 commented by default so contributors can run the generic suite without
 depending on a repository-specific test program.
 
-See [TODO.md](TODO.md) for the development roadmap and [Report.md](Report.md)
-for the implementation summary and remaining error-handling concerns.
+See [TODO.md](TODO.md) for the development roadmap
 
 ---
 
@@ -170,6 +193,68 @@ for the implementation summary and remaining error-handling concerns.
 ├── stats.h / stats.cpp        # Min, max, mean, median & failure aggregation
 ├── reporter.h / reporter.cpp  # Terminal table & JSON renderer
 └── main.cpp                   # Top-level orchestration pipeline
+```
+
+---
+
+## Execution Environment Controls
+
+Use these abstract controls to run the benchmark in a predictable environment
+without modifying the target program.
+
+### `--cwd <path>`
+
+Changes the working directory of the child process before it starts:
+
+```bash
+benchrun --cwd /tmp -- ./my_app
+```
+
+Relative paths used by the benchmarked program are resolved from `/tmp`.
+
+### `--env <KEY=VALUE>`
+
+Adds or replaces an environment variable in the child process. Repeat the flag
+to set multiple variables:
+
+```bash
+benchrun --env MODE=test --env REGION=local -- ./my_app
+```
+
+Use `--clear-env` with `--env` when the benchmark should start without most
+inherited environment variables:
+
+```bash
+benchrun --clear-env --env MODE=test -- ./my_app
+```
+
+### `--stdin-file <path>`
+
+Connects the child process's standard input to a file:
+
+```bash
+benchrun --stdin-file fixture-input.txt -- ./my_app
+```
+
+The file is opened by the child process. It cannot be combined with
+`--null-stdin`.
+
+### `--null-stdin`
+
+Connects the child process's standard input to `/dev/null`:
+
+```bash
+benchrun --null-stdin -- ./my_app
+```
+
+Use this when the benchmarked program should not read interactive input or
+inherit terminal input. It cannot be combined with `--stdin-file`.
+
+These options can be combined. For example:
+
+```bash
+benchrun --cwd /tmp --clear-env --env MODE=test \
+  --null-stdin -- ./my_app
 ```
 
 ---

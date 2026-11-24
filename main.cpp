@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
     }
 
     const BenchmarkSummary summary = compute_stats(execution.results.measured);
-    print_report(cfg, summary, execution.results.warmups, execution.results.measured);
+    if (!print_report(cfg, summary, execution.results.warmups, execution.results.measured))
+        return 1;
     return (summary.failed_runs > 0 || summary.timed_out_runs > 0) ? 1 : 0;
 }

@@ -16,6 +16,8 @@ compile_commands.json
 *.dylib
 *.dll
 /benchrun
+/report.json
+/report.csv
 
 # Test and coverage output
 Testing/
