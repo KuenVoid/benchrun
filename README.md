@@ -1,6 +1,6 @@
 # benchrun
 
-[![CI](https://github.com/KuenVoid/benchrun/actions/workflows/<ci-workflow.yml>/badge.svg)](https://github.com/KuenVoid/benchrun/actions)
+[![CI](https://github.com/KuenVoid/benchrun/actions/workflows/ci.yml/badge.svg)](https://github.com/KuenVoid/benchrun/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 
@@ -11,12 +11,11 @@
 ## Demo
 
 ```bash
-\$ benchrun -n 10 -w 2 -t 2000 -m 256 -- ./my_algo < input.txt
+$ benchrun -n 10 -w 2 -t 2000 -m 256 -- ./my_algo < input.txt
 ```
-example of "benchrun -w 5 -n 10 ./nlp.cpp
+Example output (`benchrun -w 5 -n 10 ./nlp`):
 
-
-<img width="542" height="140" alt="Screenshot 2026-11-25 at 2 11 11 PM" src="https://github.com/user-attachments/assets/31b5b3ff-8cb4-4b8a-af46-99697465b2f4" />
+<img width="592" height="135" alt="Screenshot 2026-11-25 at 2 21 42 PM" src="https://github.com/user-attachments/assets/6b0ada1d-1b6b-4493-b6f8-9edc3216256c" />
 
 ## Why benchrun?
 
@@ -66,7 +65,7 @@ Running `--json` or `--runs-json` replaces an existing `report.json`. Running
 `--csv` replaces an existing `report.csv`. These modes print a file-written
 confirmation rather than the machine-readable report itself.
 
-# Execution environment
+### Execution environment
 ```bash
 benchrun --cwd /tmp --env MODE=test --clear-env --null-stdin -- ./my_app
 ```
@@ -165,7 +164,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 after a CMake installation.
 To check whether it is installed globally, please run:
 ```
-which benchrun # should show a directory where you placed it at
+which benchrun # should print ~/.local/bin/benchrun
 ```
 
 ### Smoke tests and custom programs
@@ -299,7 +298,9 @@ For every metric, the table reports:
 The report uses median for even-sized samples as the average of the two middle
 values. One successful run has a standard deviation of `0`.
 
+---
+
 ## Contributing
 
-`benchrun` is an open-source learning and systems programming project, students and C++ enthusiasts are very welcome! Check out the [good first issues](https://github.com/KuenVoid/benchrun/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or `ARCHITECTURE.md` to get started.
+`benchrun` is an open-source learning and systems programming project, students and C++ enthusiasts are very welcome! Check out the [good first issues](https://github.com/KuenVoid/benchrun/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [ARCHITECTURE.md](ARCHITECTURE.md) to get started.
 
