@@ -1,22 +1,33 @@
 # benchrun
-$\color{grey}\text{Code Assisted By AI and Repo Owner is still learning.}$
-$\color{green}\text{For students / enthusiasts that would like to learn by project, feel free to pull and contribute.}$
-$\color{green}\text{I pushed TODO.md that I have no time to do :)}$
 
-A lightweight, zero-dependency C++20 CLI tool for multi-run execution timing, peak RSS tracking, and resource-capped benchmarking on Linux and macOS.
+[![CI](https://github.com/KuenVoid/benchrun/actions/workflows/<ci-workflow.yml>/badge.svg)](https://github.com/KuenVoid/benchrun/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 
-Built to fill the gap between `/usr/bin/time` (single-run, inconsistent OS flags) and `hyperfine` (multi-run timing without memory tracking or resource caps).
+**Lightweight, zero-dependency C++20 CLI for multi-run timing, Peak RSS tracking, and resource-capped benchmarking on Linux and macOS.**
 
----
+`benchrun` bridges the gap between `/usr/bin/time` (single-run, OS-inconsistent flags) and `hyperfine` (multi-run timing without memory metrics or resource caps).
 
-## Features (v0.0)
+## Demo
 
-* **Cross-Platform POSIX Metrics:** Consistent flags and normalized output across Linux and macOS (handles `ru_maxrss` KB vs. bytes differences automatically).
-* **Multi-Run Statistics:** Supports warmup runs (`-w`) and measured iterations (`-n`), reporting min, max, mean, and median for successful runs.
-* **Resource Guardrails:** Enforce hard execution timeouts (`-t`) and virtual address-space limits (`-m` via `setrlimit(RLIMIT_AS)`).
-* **Clean Reporting:** Human-readable terminal summary by default, plus fixed machine-readable report files.
-* **Machine-Readable Runs:** `--json` and `--runs-json` write `report.json`; `--csv` writes `report.csv`.
-* **Execution Controls:** Working directory, environment overrides, environment clearing, and stdin file or `/dev/null`.
+```bash
+\$ benchrun -n 10 -w 2 -t 2000 -m 256 -- ./my_algo < input.txt
+```
+example of "benchrun -w 5 -n 10 ./nlp.cpp
+
+
+<img width="542" height="140" alt="Screenshot 2026-11-25 at 2 11 11 PM" src="https://github.com/user-attachments/assets/31b5b3ff-8cb4-4b8a-af46-99697465b2f4" />
+
+## Why benchrun?
+
+| Feature | `/usr/bin/time` | `hyperfine` | `benchrun` |
+|---|---|---|---|
+| Multi-run stats + warmups | No | Yes | Yes |
+| Peak RSS tracking (Linux KB / macOS bytes normalized) | Yes (OS-dependent) | No | Yes |
+| Timeout (`-t`) & memory caps (`-m`) | No | No | Yes |
+| Execution env controls (`--cwd`, `--env`, `--stdin-file`) | No | Partial | Yes |
+| JSON / CSV export | No | Yes | Yes |
+| Zero external dependencies | Yes | No (Rust crates) | Yes (C++20 + POSIX) |
 
 ---
 
@@ -287,3 +298,8 @@ For every metric, the table reports:
 
 The report uses median for even-sized samples as the average of the two middle
 values. One successful run has a standard deviation of `0`.
+
+## Contributing
+
+`benchrun` is an open-source learning and systems programming project, students and C++ enthusiasts are very welcome! Check out the [good first issues](https://github.com/KuenVoid/benchrun/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or `ARCHITECTURE.md` to get started.
+
